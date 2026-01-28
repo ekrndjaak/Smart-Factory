@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 import pymysql
 
-load_dotenv() # .env 파일의 내용을 환경 변수로 불러옵니다.
+load_dotenv() 
 
 db_config = {
     'host': os.getenv('DB_HOST'),
