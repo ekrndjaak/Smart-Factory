@@ -1,3 +1,6 @@
+*.db
+*.csv
+*.py[cod]
 .env
 venv/
 __pycache__/
