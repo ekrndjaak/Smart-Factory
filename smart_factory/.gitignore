@@ -1,7 +1,12 @@
 *.db
 *.csv
+data\
+
 *.py[cod]
+
 .env
+
 venv/
+
 __pycache__/
 *.pyc
