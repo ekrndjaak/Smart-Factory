@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-time Factory Monitor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 40px; text-align: center; transition: background-color 0.5s; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+        .stat-container { display: flex; justify-content: space-around; margin: 20px 0; }
+        .stat-box { padding: 15px; width: 22%; background: #f8f9fa; border-radius: 10px; }
+        .value { font-size: 24px; font-weight: bold; display: block; }
+        #curve_chart { width: 100%; height: 300px; }
+        .control-panel { margin-top: 20px; padding: 20px; border-top: 1px solid #eee; }
+        .btn { padding: 12px 25px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin: 0 10px; transition: 0.3s; }
+        .btn-stop { background-color: #d32f2f; color: white; }
+        .btn-stop:hover { background-color: #b71c1c; }
+        .btn-start { background-color: #2e7d32; color: white; }
+        .btn-start:hover { background-color: #1b5e20; }
+        #status_msg { font-size: 14px; font-weight: bold; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🚀 Live Production Line Monitor</h2>
+        
+        <div class="control-panel">
+            <div id="status_msg" style="color: #28a745;">● System Status: Running</div>
+            <button class="btn btn-stop" onclick="sendCommand('stop')">EMERGENCY STOP</button>
+            <button class="btn btn-start" onclick="sendCommand('start')">RESUME START</button>
+        </div>
+
+        <div class="stat-container">
+            <div class="stat-box">Total<span id="total" class="value">{{ total }}</span></div>
+            <div class="stat-box" style="color:green">Pass<span id="pass" class="value">{{ pass_units }}</span></div>
+            <div class="stat-box" style="color:red">Fail<span id="fail" class="value">{{ fail }}</span></div>
+            <div class="stat-box">Defect Rate<span id="rate" class="value">{{ rate }}%</span></div>
+        </div>
+        
+        <div id="curve_chart"></div>
+        <p style="font-size:11px; color:#aaa; margin-top: 20px;">Logs are saved in /data/production_logs.csv</p>
+    </div>
+
+    <script>
+        google.charts.load('current', {'packages':['corechart']});
+        // safe 필터는 리스트 데이터를 자바스크립트가 이해할 수 있는 형태로 보내줍니다
+        let chartData = {{ chart_data | safe }};
+        
+        function drawChart() {
+            var data = google.visualization.arrayToDataTable(chartData);
+            var options = { 
+                curveType: 'function', 
+                legend: 'none', 
+                vAxis: { title: 'Torque', minValue: 10, maxValue: 20 },
+                hAxis: { title: 'Time' },
+                colors: ['#2e7d32']
+            };
+            var chart = new google.visualization.LineChart(document.getElementById('curve_chart'));
+            chart.draw(data, options);
+        }
+        google.charts.setOnLoadCallback(drawChart);
+
+        // dashboard.html 내 sendCommand 함수 수정
+function sendCommand(cmd) {
+    let reasonCode = "000"; // 정상 가동 시 코드
+    
+    if (cmd === 'stop') {
+        const choice = prompt(
+            "정지 사유 코드를 입력하세요:\n" +
+            "001: 부품 부족 (MATERIAL)\n" +
+            "002: 설비 점검 (MAINTENANCE)\n" +
+            "003: 안전 사고 (SAFETY)\n" +
+            "004: 품질 검사 (QUALITY)\n" +
+            "005: 기타 사유 (ETC)", "001"
+        );
+        reasonCode = choice || "005";
+    }
+
+    fetch('/api/control', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            command: cmd, 
+            reason_code: reasonCode
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const msg = document.getElementById('status_msg');
+        if (cmd === 'stop') {
+            msg.innerText = `⚠️ System Status: STOPPED (CODE ${reasonCode})`;
+            msg.style.color = "red";
+        } else {
+            msg.innerText = "● System Status: Running";
+            msg.style.color = "#28a745";
+        }
+    });
+}
+
+        var socket = io();
+        socket.on('update_data', function(msg) {
+           document.getElementById('total').innerText = msg.total;
+            document.getElementById('pass').innerText = msg.pass;
+            document.getElementById('fail').innerText = msg.fail;
+            document.getElementById('rate').innerText = msg.rate + '%';
+    
+    // msg.new_log.torque를 parseFloat로 감싸 숫자로 확실히 변환합니다.
+            let torqueValue = parseFloat(msg.new_log.torque); 
+    
+            chartData.push([msg.new_log.id, torqueValue]);
+            if (chartData.length > 11) chartData.splice(1, 1);
+            drawChart();
+        });
+    </script>
+</body>
+</html>
