@@ -29,3 +29,5 @@ CREATE TABLE IF NOT EXISTS summary_shift (
 
 CREATE INDEX IF NOT EXISTS idx_summary_date_line
 ON summary_shift(date, line_id);
+
+ALTER TABLE summary_shift ADD COLUMN last_event_ts INTEGER NOT NULL DEFAULT 0;
