@@ -2,6 +2,7 @@ from flask import Flask
 from .db import close_db
 from .routes.ingest import bp as ingest_bp
 from .routes.query import bp as query_bp
+from .routes.ui import bp as ui_bp
 
 def create_app():
     app = Flask(__name__)
@@ -10,4 +11,6 @@ def create_app():
     app.teardown_appcontext(close_db)
     app.register_blueprint(ingest_bp, url_prefix="/api")
     app.register_blueprint(query_bp, url_prefix="/api")
+    app.register_blueprint(ui_bp)
+
     return app

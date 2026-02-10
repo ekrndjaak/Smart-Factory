@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Smart Factory Dashboard</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; }
+    .row { display:flex; gap:12px; flex-wrap: wrap; align-items:center; margin-bottom: 16px; }
+    input, button { padding: 10px 12px; font-size: 14px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background: #f6f6f6; }
+    .muted { color:#666; font-size: 13px; }
+    .pill { display:inline-block; padding:2px 8px; border-radius: 999px; background:#eee; font-size:12px; }
+  </style>
+</head>
+<body>
+  <h1>스마트팩토리 KPI 대시보드</h1>
+  <p class="muted">summary_shift 집계 테이블 기반 (raw_events 직접 계산 안 함)</p>
+
+  <div class="row">
+    <label>날짜:
+      <input id="date" type="date" />
+    </label>
+    <button id="btn">조회</button>
+    <span id="status" class="pill">대기</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>DATE</th>
+        <th>SHIFT</th>
+        <th>LINE</th>
+        <th>PRODUCED</th>
+        <th>DEFECT</th>
+        <th>STOP(min)</th>
+        <th>AVG_CYCLE</th>
+        <th>LAST_TS</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr><td colspan="8" class="muted">데이터를 불러오면 표시됩니다.</td></tr>
+    </tbody>
+  </table>
+
+<script>
+    console.log("DASHBOARD JS LOADED");
+  const $ = (id) => document.getElementById(id);
+
+  function setStatus(text) {
+    $("status").textContent = text;
+  }
+
+  function fmt(x) {
+    if (x === null || x === undefined) return "-";
+    return x;
+  }
+
+  async function loadKpi() {
+    const d = $("date").value;
+    const url = d ? `/api/kpi/today?date=${encodeURIComponent(d)}` : `/api/kpi/today`;
+
+    setStatus("불러오는 중...");
+    $("tbody").innerHTML = `<tr><td colspan="8" class="muted">로딩중...</td></tr>`;
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (!data.length) {
+        $("tbody").innerHTML = `<tr><td colspan="8" class="muted">해당 날짜 집계 데이터가 없습니다. (워커 실행/이벤트 입력 확인)</td></tr>`;
+        setStatus("빈 결과");
+        return;
+      }
+
+      $("tbody").innerHTML = data.map(r => `
+        <tr>
+          <td>${fmt(r.date)}</td>
+          <td>${fmt(r.shift)}</td>
+          <td>${fmt(r.line_id)}</td>
+          <td>${fmt(r.produced_count)}</td>
+          <td>${fmt(r.defect_count)}</td>
+          <td>${fmt(r.stop_minutes)}</td>
+          <td>${fmt(r.avg_cycle_time)}</td>
+          <td>${fmt(r.last_event_ts)}</td>
+        </tr>
+      `).join("");
+
+      setStatus("완료");
+    } catch (e) {
+      $("tbody").innerHTML = `<tr><td colspan="8" class="muted">에러: ${e.message}</td></tr>`;
+      setStatus("에러");
+    }
+  }
+
+  // 기본값: 오늘
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  $("date").value = `${yyyy}-${mm}-${dd}`;
+
+  $("btn").addEventListener("click", loadKpi);
+  loadKpi();
+</script>
+</body>
+</html>
