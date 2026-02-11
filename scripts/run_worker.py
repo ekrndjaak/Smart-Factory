@@ -113,4 +113,4 @@ def aggregate_incremental_once():
 if __name__ == "__main__":
     while True:
         aggregate_incremental_once()
-        time.sleep(60)
+        time.sleep(10)
